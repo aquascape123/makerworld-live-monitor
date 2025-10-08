@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>MakerWorld Monitor</title>
+    <style>
+        body {
+            width: 380px;
+            padding: 15px;
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .container {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        h2 {
+            margin: 0 0 20px 0;
+            color: #667eea;
+            text-align: center;
+            font-size: 24px;
+        }
+        h3 {
+            margin: 15px 0 10px 0;
+            color: #764ba2;
+            font-size: 18px;
+            border-bottom: 2px solid #e0e0e0;
+            padding-bottom: 5px;
+        }
+        .config-section {
+            margin-bottom: 15px;
+            padding: 15px;
+            background: #f9f9f9;
+            border-radius: 8px;
+        }
+        .config-section.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+        label {
+            display: block;
+            margin: 10px 0 5px;
+            font-weight: bold;
+            color: #333;
+            font-size: 13px;
+        }
+        input, select {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            border: 2px solid #e0e0e0;
+            border-radius: 5px;
+            box-sizing: border-box;
+            font-size: 13px;
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        button {
+            width: 100%;
+            padding: 10px;
+            margin: 5px 0;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        #save-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px;
+            font-size: 14px;
+        }
+        #save-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(102,126,234,0.4);
+        }
+        .test-button {
+            background-color: #4CAF50;
+            color: white;
+            font-size: 12px;
+        }
+        .test-button:hover {
+            background-color: #45a049;
+        }
+        .test-button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .status {
+            margin-top: 15px;
+            padding: 12px;
+            text-align: center;
+            border-radius: 5px;
+            font-weight: bold;
+            font-size: 13px;
+            display: none;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .section-divider {
+            border-top: 2px solid #e0e0e0;
+            margin: 20px 0;
+        }
+        .info-text {
+            font-size: 11px;
+            color: #666;
+            margin-top: 5px;
+            font-style: italic;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid #e0e0e0;
+        }
+        .footer a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        .footer a:hover {
+            text-decoration: underline;
+        }
+        .toggle-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        .toggle-row label {
+            margin: 0;
+            flex: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>MakerWorld Monitor</h2>
+        
+        <!-- ESP32 SECTION -->
+        <div class="config-section" id="esp32-section">
+            <div class="toggle-row">
+                <label>ESP32 Display:</label>
+                <select id="esp32-enabled" style="width: 120px;">
+                    <option value="no">Disabled</option>
+                    <option value="yes">Enabled</option>
+                </select>
+            </div>
+            
+            <div id="esp32-config">
+                <label for="esp32-ip">ESP32 IP Address:</label>
+                <input type="text" id="esp32-ip" placeholder="e.g. 192.168.1.100">
+                <div class="info-text">Enter the IP shown on your ESP32 display</div>
+                
+                <button class="test-button" id="test-esp32">Test Connection</button>
+                <button class="test-button" id="test-notification" style="background-color: #ff9800;">Test Notification</button>
+            </div>
+        </div>
+
+        <div class="section-divider"></div>
+
+        <!-- TELEGRAM SECTION -->
+        <div class="config-section" id="telegram-section">
+            <div class="toggle-row">
+                <label>Telegram Notifications:</label>
+                <select id="telegram-enabled" style="width: 120px;">
+                    <option value="no">Disabled</option>
+                    <option value="yes">Enabled</option>
+                </select>
+            </div>
+            
+            <div id="telegram-config">
+                <label for="telegram-token">Telegram Bot Token:</label>
+                <input type="text" id="telegram-token" placeholder="Enter Bot Token">
+                
+                <label for="chat-id">Telegram Chat ID:</label>
+                <input type="text" id="chat-id" placeholder="Enter Chat ID">
+                <div class="info-text">Get token from @BotFather, chat ID from @userinfobot</div>
+            </div>
+        </div>
+
+        <div class="section-divider"></div>
+        
+        <!-- GENERAL SETTINGS -->
+        <div class="config-section">
+            <h3>General Settings</h3>
+            
+            <label for="refresh-interval">Refresh Interval:</label>
+            <select id="refresh-interval">
+                <option value="300000">5 minutes</option>
+                <option value="600000">10 minutes</option>
+                <option value="900000" selected>15 minutes</option>
+                <option value="1800000">30 minutes</option>
+                <option value="3600000">1 hour</option>
+            </select>
+
+            <label for="daily-report">Daily Summary:</label>
+            <select id="daily-report">
+                <option value="yes">Enabled</option>
+                <option value="no">Disabled</option>
+            </select>
+
+            <label for="notification-time">Summary Time:</label>
+            <input type="time" id="notification-time" value="12:00">
+        </div>
+            
+        <button id="save-button">Save Configuration</button>
+        <div id="status" class="status"></div>
+
+        <div class="footer">
+            <small>
+                Made with ❤️ by 
+                <a href="https://makerworld.com/en/@aquascape" target="_blank">
+                    @aquascape
+                </a>
+            </small>
+        </div>
+    </div>
+
+    <script src="popup.js"></script>
+</body>
+</html>

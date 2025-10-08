@@ -1,0 +1,81 @@
+# Arduino
+*.elf
+*.hex
+*.bin
+*.map
+*.lst
+*.o
+*.a
+build/
+*.ino.cpp
+
+# Arduino IDE
+.vscode/
+.idea/
+*.code-workspace
+
+# ESP32
+*.esp32.bin
+bootloader.bin
+partitions.bin
+
+# Sensitive data
+config_local.h
+credentials.h
+secrets.h
+wifi_credentials.h
+
+# Extension development
+extension/node_modules/
+extension/dist/
+extension/*.crx
+extension/*.pem
+extension/.DS_Store
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# Backup files
+*.bak
+*.backup
+*.old
+
+# Python (if used for tools)
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+venv/
+ENV/
+
+# Documentation build
+docs/_build/
+docs/.doctrees/
+
+# IDE specific
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Testing
+test_results/
+coverage/
+
+# Personal notes
+NOTES.md
+TODO_PERSONAL.md
