@@ -1,0 +1,17 @@
+{
+  "name": "MakerWorld Live Monitor",
+  "version": "2.1.0",
+  "home_assistant_domain": "makerworld_monitor",
+  "new_install_prompt_erase": true,
+  "builds": [
+    {
+      "chipFamily": "ESP32",
+      "parts": [
+        {
+          "path": "firmware.bin",
+          "offset": 4096
+        }
+      ]
+    }
+  ]
+}
