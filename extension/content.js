@@ -57,32 +57,31 @@ class ValueMonitor {
   }
 
   async sendViaBackground(endpoint, data) {
-  return new Promise((resolve) => {
-    // AUMENTA IL TIMEOUT QUI
-    const timeoutId = setTimeout(() => {
-      console.error(`Timeout: ${endpoint} took too long`);
-      resolve(false);
-    }, 15000); // Aumentato da implicito a 15 secondi espliciti
-    
-    chrome.runtime.sendMessage({
-      action: "sendToESP32",
-      ip: this.esp32IP,
-      endpoint: endpoint,
-      data: data,
-      method: 'POST'
-    }, (response) => {
-      clearTimeout(timeoutId); // Cancella timeout se risponde
-      
-      if (response && response.success) {
-        console.log(`✅ Background relay success for ${endpoint}`);
-        resolve(true);
-      } else {
-        console.error(`❌ Background relay failed for ${endpoint}:`, response?.error);
+    return new Promise((resolve) => {
+      const timeoutId = setTimeout(() => {
+        console.error(`Timeout: ${endpoint} took too long`);
         resolve(false);
-      }
+      }, 15000);
+      
+      chrome.runtime.sendMessage({
+        action: "sendToESP32",
+        ip: this.esp32IP,
+        endpoint: endpoint,
+        data: data,
+        method: 'POST'
+      }, (response) => {
+        clearTimeout(timeoutId);
+        
+        if (response && response.success) {
+          console.log(`✅ Background relay success for ${endpoint}`);
+          resolve(true);
+        } else {
+          console.error(`❌ Background relay failed for ${endpoint}:`, response?.error);
+          resolve(false);
+        }
+      });
     });
-  });
-}
+  }
 
   async sendTelegramMessage(message) {
     if (!this.telegramEnabled || !this.telegramToken || !this.chatId) {
@@ -153,7 +152,7 @@ class ValueMonitor {
   async syncInitialStats() {
     if (!this.esp32Enabled || !this.esp32IP) {
         console.log('ESP32 disabled, skipping sync');
-        return true; // Non è un errore, è solo disabilitato
+        return true;
     }
 
     const currentValues = this.getCurrentValues();
@@ -166,9 +165,11 @@ class ValueMonitor {
     const totalPrints = currentValues.totalPrints || 0;
     const totalBoosts = currentValues.totalBoosts || 0;
     const totalPoints = currentValues.points || 0;
+    const accountName = currentValues.accountName || '';  // AGGIUNTO
 
     try {
         console.log('Syncing initial stats to ESP32:', {
+            accountName,  // AGGIUNTO
             totalDownloads,
             totalPrints,
             totalBoosts,
@@ -176,6 +177,7 @@ class ValueMonitor {
         });
 
         const success = await this.sendViaBackground('sync', {
+            accountName,  // AGGIUNTO
             totalDownloads,
             totalPrints,
             totalBoosts,
@@ -197,12 +199,10 @@ class ValueMonitor {
   async sendNotifications(data, message, imageUrl = null) {
     const promises = [];
 
-    // Invia a ESP32 se abilitato
     if (this.esp32Enabled && this.esp32IP) {
       promises.push(this.sendToESP32(data));
     }
 
-    // Invia a Telegram se abilitato
     if (this.telegramEnabled && this.telegramToken && this.chatId) {
       if (imageUrl) {
         promises.push(this.sendTelegramMessageWithPhoto(message, imageUrl));
@@ -211,7 +211,6 @@ class ValueMonitor {
       }
     }
 
-    // Invia in parallelo
     await Promise.all(promises);
   }
 
@@ -239,8 +238,20 @@ class ValueMonitor {
         const currentValues = {
             models: {},
             points: 0,
+            accountName: '',  // AGGIUNTO
             timestamp: Date.now()
         };
+
+        // 0. ESTRAZIONE NOME ACCOUNT (NUOVO)
+        try {
+            const accountElement = document.querySelector('.mw-css-1v58zuy');
+            if (accountElement) {
+                currentValues.accountName = accountElement.textContent.trim();
+                console.log('Account name extracted:', currentValues.accountName);
+            }
+        } catch (accountError) {
+            console.error('Error extracting account name:', accountError);
+        }
 
         // 1. ESTRAZIONE PUNTI
         try {
@@ -329,6 +340,7 @@ class ValueMonitor {
         });
 
         console.log('Extraction complete:', {
+            accountName: currentValues.accountName,  // AGGIUNTO
             points: currentValues.points,
             totalDownloads: currentValues.totalDownloads,
             totalPrints: currentValues.totalPrints,
@@ -636,16 +648,13 @@ Reward Interval: every ${rewardInterval} points`;
       'refreshInterval',
       'dailyReport'
     ], async (config) => {
-      // Configura ESP32
       this.esp32Enabled = config.esp32_enabled === 'yes';
       this.esp32IP = config.esp32_ip || '';
 
-      // Configura Telegram
       this.telegramEnabled = config.telegram_enabled === 'yes';
       this.telegramToken = config.telegramToken || '';
       this.chatId = config.chatId || '';
 
-      // Verifica che almeno uno sia abilitato
       if (!this.esp32Enabled && !this.telegramEnabled) {
         console.error('Neither ESP32 nor Telegram is enabled. Enable at least one.');
         return;
@@ -658,7 +667,6 @@ Reward Interval: every ${rewardInterval} points`;
       
       const refreshInterval = config.refreshInterval || 900000;
 
-      // Sync ESP32 se abilitato
       if (this.esp32Enabled) {
         let syncSuccess = false;
         let attempts = 0;

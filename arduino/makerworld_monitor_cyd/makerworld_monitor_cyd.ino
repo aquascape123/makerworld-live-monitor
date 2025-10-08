@@ -27,6 +27,7 @@ struct Stats {
   int totalPrints = 0;
   int totalBoosts = 0;
   float totalPoints = 0.0;  // CAMBIATO DA int A float
+  char accountName[32] = "";  // AGGIUNTO: Nome account (max 31 caratteri)
   unsigned long lastNotification = 0;
   bool initialized = false;
 } stats;
@@ -117,6 +118,7 @@ void saveStats() {
   prefs.putInt("prints", stats.totalPrints);
   prefs.putInt("boosts", stats.totalBoosts);
   prefs.putFloat("points", stats.totalPoints);  // CAMBIATO putInt in putFloat
+  prefs.putString("accountName", String(stats.accountName));  // AGGIUNTO: Salva nome account
   prefs.putBool("initialized", stats.initialized);
   prefs.end();
   Serial.println("Stats saved to flash");
@@ -128,10 +130,19 @@ void loadStats() {
   stats.totalPrints = prefs.getInt("prints", 0);
   stats.totalBoosts = prefs.getInt("boosts", 0);
   stats.totalPoints = prefs.getFloat("points", 0.0);  // CAMBIATO getInt in getFloat
+  
+  // AGGIUNTO: Carica nome account
+  String accountNameStr = prefs.getString("accountName", "");
+  if (accountNameStr.length() > 0) {
+    strncpy(stats.accountName, accountNameStr.c_str(), sizeof(stats.accountName) - 1);
+    stats.accountName[sizeof(stats.accountName) - 1] = '\0';
+  }
+  
   stats.initialized = prefs.getBool("initialized", false);
   prefs.end();
   
   Serial.println("Stats loaded from flash:");
+  Serial.print("Account: "); Serial.println(stats.accountName);
   Serial.print("Downloads: "); Serial.println(stats.totalDownloads);
   Serial.print("Prints: "); Serial.println(stats.totalPrints);
   Serial.print("Boosts: "); Serial.println(stats.totalBoosts);
@@ -447,14 +458,46 @@ void showMainScreen() {
   tft.fillRect(0, 0, 320, 35, COLOR_CARD_BG);
   tft.setTextColor(COLOR_TEXT);
   tft.setTextSize(2);
-  tft.setCursor(50, 10);
-  tft.println("MakerWorld Stats");
+  
+  // DEBUG: Stampa nel serial monitor
+  Serial.print("showMainScreen() - accountName: '");
+  Serial.print(stats.accountName);
+  Serial.print("' length: ");
+  Serial.println(strlen(stats.accountName));
+  
+  // Mostra nome account se disponibile, altrimenti "MakerWorld Stats"
+  if (strlen(stats.accountName) > 0) {
+    // Calcola posizione centrata per il testo
+    String displayText = "@" + String(stats.accountName) + " Stats";
+    int textWidth = displayText.length() * 12; // Approssimazione: 12 pixel per carattere size 2
+    int xPos = (320 - textWidth) / 2;
+    if (xPos < 10) xPos = 10; // Minimo margine
+    
+    Serial.print("Displaying: ");
+    Serial.println(displayText);
+    
+    tft.setCursor(xPos, 10);
+    tft.println(displayText);
+  } else {
+    Serial.println("No account name, showing default");
+    tft.setCursor(50, 10);
+    tft.println("MakerWorld Stats");
+  }
   
   updateStatsDisplay();
 }
 
 void updateStatsDisplay() {
   if (currentNotif.active) return;
+  
+  // AGGIUNTO: Ridisegna l'header se necessario
+  static char lastAccountName[32] = "";
+  if (strcmp(stats.accountName, lastAccountName) != 0) {
+    // Il nome account è cambiato, ridisegna tutto
+    strcpy(lastAccountName, stats.accountName);
+    showMainScreen();
+    return;
+  }
   
   int cardY = 45;
   int cardHeight = 35;
@@ -801,6 +844,15 @@ void handleSync() {
   
   bool updated = false;
   
+  // AGGIUNTO: Estrai nome account
+  if (doc.containsKey("accountName")) {
+    String accountNameStr = doc["accountName"].as<String>();
+    strncpy(stats.accountName, accountNameStr.c_str(), sizeof(stats.accountName) - 1);
+    stats.accountName[sizeof(stats.accountName) - 1] = '\0';
+    Serial.print("Account Name: "); Serial.println(stats.accountName);
+    updated = true;
+  }
+  
   if (doc.containsKey("totalDownloads")) {
     stats.totalDownloads = doc["totalDownloads"];
     updated = true;
@@ -822,10 +874,14 @@ void handleSync() {
     stats.initialized = true;
     saveStats();
     Serial.println("=== SYNC COMPLETE ===");
+    Serial.print("Account: "); Serial.println(stats.accountName);
     Serial.print("Downloads: "); Serial.println(stats.totalDownloads);
     Serial.print("Prints: "); Serial.println(stats.totalPrints);
     Serial.print("Boosts: "); Serial.println(stats.totalBoosts);
     Serial.print("Points: "); Serial.println(stats.totalPoints, 2);  // STAMPA CON 2 DECIMALI
+    
+    // AGGIUNTO: Forza ridisegno completo dello schermo
+    delay(100);  // Piccolo delay per stabilità
   }
   
   showMainScreen();
@@ -868,6 +924,18 @@ void handleNotification() {
     Serial.print("Mapped total (before): "); Serial.println(currentNotif.total, 2);
     Serial.print("Mapped points (after): "); Serial.println(currentNotif.points, 2);
     Serial.print("Mapped value (increase): "); Serial.println(currentNotif.value, 2);
+  } else if (currentNotif.type == "daily_summary") {
+    currentNotif.modelName = "";
+    currentNotif.value = doc["dailyDownloads"].as<float>();    // Downloads nelle 24h
+    currentNotif.total = doc["dailyPrints"].as<float>();       // Prints nelle 24h
+    currentNotif.points = doc["pointsGained"].as<float>();     // Points guadagnati
+    
+    // DEBUG DAILY SUMMARY
+    Serial.println("=== DAILY SUMMARY DEBUG ===");
+    Serial.print("Daily Downloads: "); Serial.println(currentNotif.value, 0);
+    Serial.print("Daily Prints: "); Serial.println(currentNotif.total, 0);
+    Serial.print("Points Gained: "); Serial.println(currentNotif.points, 2);
+    Serial.print("Total Points: "); Serial.println(doc["points"].as<float>(), 2);
   } else {
     currentNotif.modelName = doc["modelName"].as<String>();
     currentNotif.value = doc["value"] | 0;
