@@ -46,7 +46,7 @@ Real-time monitoring system for your MakerWorld statistics with ESP32 display an
 
 1. **Visit the Web Flasher**
    ```
-   https://[your-github-username].github.io/makerworld-live-monitor/flasher/
+   https://aquascape123.github.io/makerworld-live-monitor/flasher/
    ```
 
 2. **Connect ESP32** via USB-C
@@ -341,9 +341,9 @@ This project is licensed under the MIT License - see [LICENSE](LICENSE) file.
 If you find this project useful:
 
 - ⭐ Star this repository
-- 🐛 Report bugs via [Issues](https://github.com/[username]/makerworld-live-monitor/issues)
+- 🐛 Report bugs via [Issues](https://github.com/aquascape123/makerworld-live-monitor/issues)
 - 💡 Suggest features
-- ☕ [Buy me a coffee](https://www.buymeacoffee.com/aquascape)
+- ☕ [Support my work](https://makerworld.com/en/@aquascape)
 
 ## 🙏 Credits
 
@@ -357,8 +357,8 @@ Created with ❤️ by [@aquascape](https://makerworld.com/en/@aquascape)
 ## 🔗 Links
 
 - [MakerWorld Profile](https://makerworld.com/en/@aquascape)
-- [Project Documentation](https://github.com/[username]/makerworld-live-monitor/wiki)
-- [Video Tutorial](https://youtube.com/...)
+- [Project Documentation](https://github.com/aquascape123/makerworld-live-monitor/wiki)
+
 
 ---
 
