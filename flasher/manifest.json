@@ -1,15 +1,21 @@
 {
   "name": "MakerWorld Live Monitor",
   "version": "2.1.0",
-  "home_assistant_domain": "makerworld_monitor",
-  "new_install_prompt_erase": true,
   "builds": [
     {
       "chipFamily": "ESP32",
       "parts": [
         {
-          "path": "firmware.bin",
+          "path": "makerworld_monitor_cyd.ino.bootloader.bin",
           "offset": 4096
+        },
+        {
+          "path": "makerworld_monitor_cyd.ino.partitions.bin",
+          "offset": 32768
+        },
+        {
+          "path": "firmware.bin",
+          "offset": 65536
         }
       ]
     }
