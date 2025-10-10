@@ -277,6 +277,76 @@
             color: #dc3545;
         }
 
+        /* NUOVO STILE PER LA SEZIONE FIX COLORI */
+        .color-fix-section {
+            background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+            border: 2px solid #ffc107;
+            padding: 30px;
+            border-radius: 15px;
+            margin: 30px 0;
+            text-align: center;
+        }
+
+        .color-fix-section h2 {
+            color: #856404;
+            margin-bottom: 15px;
+            font-size: 1.8em;
+        }
+
+        .color-fix-section h3 {
+            color: #856404;
+            margin-bottom: 20px;
+            font-size: 1.2em;
+        }
+
+        .problem-list {
+            text-align: left;
+            max-width: 600px;
+            margin: 0 auto 25px;
+            background: rgba(255, 255, 255, 0.7);
+            padding: 20px;
+            border-radius: 10px;
+        }
+
+        .problem-list ul {
+            margin-left: 20px;
+            color: #856404;
+        }
+
+        .problem-list li {
+            margin-bottom: 10px;
+            line-height: 1.5;
+        }
+
+        .fix-button {
+            background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%);
+            color: #856404;
+            border: none;
+            padding: 15px 40px;
+            font-size: 1.1em;
+            border-radius: 50px;
+            font-weight: bold;
+            cursor: pointer;
+            margin: 10px;
+            box-shadow: 0 5px 15px rgba(255, 193, 7, 0.3);
+            transition: all 0.3s;
+        }
+
+        .fix-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(255, 193, 7, 0.4);
+            background: linear-gradient(135deg, #e0a800 0%, #d39e00 100%);
+        }
+
+        .fix-instructions {
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 10px;
+            font-size: 0.9em;
+            color: #856404;
+        }
+
         @media (max-width: 768px) {
             .header h1 {
                 font-size: 1.8em;
@@ -295,6 +365,10 @@
             }
 
             .steps {
+                padding: 20px;
+            }
+            
+            .color-fix-section {
                 padding: 20px;
             }
         }
@@ -405,6 +479,33 @@
                             <small>Safari ✗</small>
                         </div>
                     </div>
+                </div>
+            </div>
+
+            <!-- NUOVA SEZIONE PER IL FIX COLORI -->
+            <div class="color-fix-section">
+                <h2>🎨 Color Inversion Fix</h2>
+                <h3>Some CYD displays show inverted colors - if this happens to you, use this fix!</h3>
+                
+                <div class="problem-list">
+                    <p><strong>Do you see this?</strong></p>
+                    <ul>
+                        <li>❌ Text appears BLACK on WHITE background</li>
+                        <li>❌ Colors look inverted/wrong</li>
+                        <li>❌ Display is hard to read</li>
+                        <li>❌ Interface doesn't look right</li>
+                    </ul>
+                </div>
+
+                <esp-web-install-button manifest="./manifest_inverted.json">
+                    <button slot="activate" class="fix-button">
+                        🔧 Install Color Fix
+                    </button>
+                </esp-web-install-button>
+
+                <div class="fix-instructions">
+                    <p><strong>Instructions:</strong> Try the normal firmware first. If colors are inverted, come back and install this fix.</p>
+                    <p>✅ After fix: Text should be WHITE on BLACK background with correct colors</p>
                 </div>
             </div>
 
