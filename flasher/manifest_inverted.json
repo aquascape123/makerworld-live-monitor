@@ -1,0 +1,23 @@
+{
+  "name": "MakerWorld Monitor - Color Fix",
+  "version": "2.1.0-colorfix", 
+  "builds": [
+    {
+      "chipFamily": "ESP32",
+      "parts": [
+        {
+          "path": "makerworld_monitor_cyd.ino.bootloader.bin",
+          "offset": 4096
+        },
+        {
+          "path": "makerworld_monitor_cyd.ino.partitions.bin", 
+          "offset": 32768
+        },
+        {
+          "path": "makerworld_monitor_cyd.ino_inverted.bin",
+          "offset": 65536
+        }
+      ]
+    }
+  ]
+}
