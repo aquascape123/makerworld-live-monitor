@@ -5,7 +5,7 @@ Browser extension that automatically sends your MakerWorld statistics to the ESP
 ## 📥 Installation
 
 ### Chrome/Edge/Brave
-1. Download the latest release from the [Releases page](#)
+1. Download the latest release from the [Main page](https://github.com/aquascape123/makerworld-live-monitor/tree/main)
 2. Unzip the downloaded file
 3. Open Chrome/Edge and go to `chrome://extensions/`
 4. Enable **"Developer mode"** (toggle in top-right corner)
