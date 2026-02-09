@@ -344,6 +344,7 @@ If you find this project useful:
 - 🐛 Report bugs via [Issues](https://github.com/aquascape123/makerworld-live-monitor/issues)
 - 💡 Suggest features
 - ☕ [Support my work](https://makerworld.com/en/@aquascape)
+- ⚡️ Bitcoin Lightning: sullencicada855@walletofsatoshi.com
 
 ## 🙏 Credits
 
