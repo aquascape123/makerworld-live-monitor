@@ -523,11 +523,10 @@ class ValueMonitor {
             
             if (pointsElement) {
                 const pointsText = pointsElement.textContent || pointsElement.innerText;
-                const numbers = pointsText.match(/\d+[\.,]?\d*/g);
+                const pointsValue = this.parsePointsValue(pointsText);
                 
-                if (numbers && numbers.length > 0) {
-                    const numberStr = numbers[0].replace(',', '.');
-                    currentValues.points = parseFloat(numberStr);
+                if (Number.isFinite(pointsValue)) {
+                    currentValues.points = pointsValue;
                     console.log('Points extracted:', currentValues.points);
                 }
             }
@@ -618,6 +617,34 @@ class ValueMonitor {
     }
     
     return parseInt(text.replace(/[^\d]/g, '')) || 0;
+  }
+
+  parsePointsValue(text) {
+    if (!text) return 0;
+
+    const match = String(text).match(/\d[\d\s,.]*/);
+    if (!match) return 0;
+
+    let value = match[0].replace(/\s/g, '');
+    const hasComma = value.includes(',');
+    const hasDot = value.includes('.');
+
+    if (hasComma && hasDot) {
+      const decimalSeparator = value.lastIndexOf(',') > value.lastIndexOf('.') ? ',' : '.';
+      const thousandsSeparator = decimalSeparator === ',' ? '.' : ',';
+      value = value
+        .replace(new RegExp(`\\${thousandsSeparator}`, 'g'), '')
+        .replace(decimalSeparator, '.');
+    } else if (hasComma) {
+      value = /^\d{1,3}(,\d{3})+$/.test(value)
+        ? value.replace(/,/g, '')
+        : value.replace(',', '.');
+    } else if (hasDot && /^\d{1,3}(\.\d{3})+$/.test(value)) {
+      value = value.replace(/\./g, '');
+    }
+
+    const parsed = parseFloat(value);
+    return Number.isFinite(parsed) ? parsed : 0;
   }
 
   async getDailySummary() {
