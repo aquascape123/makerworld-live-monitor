@@ -1,17 +1,19 @@
 {
   "manifest_version": 3,
-  "name": "MakerWorld Monitor for ESP32",
+  "name": "MakerWorld Monitor",
   "version": "2.1",
-  "description": "Monitor downloads and prints on MakerWorld, sending notifications to ESP32 display.",
+  "description": "Monitor MakerWorld downloads, prints, boosts, and points with ESP32, Telegram, and Home Assistant MQTT.",
   "permissions": [
     "storage",
-    "scripting",
-    "webRequest"
+    "scripting"
   ],
   "host_permissions": [
     "https://makerworld.com/*",
     "https://www.makeronline.com/en/*",
-    "http://*/*"
+    "https://api.telegram.org/*",
+    "http://*/*",
+    "ws://*/*",
+    "wss://*/*"
   ],
   "content_scripts": [
     {

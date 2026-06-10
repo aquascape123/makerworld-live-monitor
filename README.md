@@ -1,6 +1,6 @@
 # 🚀 MakerWorld Live Monitor
 
-Real-time monitoring system for your MakerWorld statistics with ESP32 display and Telegram notifications.
+Real-time monitoring system for your MakerWorld statistics with ESP32 display, Telegram notifications, and Home Assistant MQTT sensors.
 
 ![Version](https://img.shields.io/badge/version-2.1-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
@@ -9,6 +9,7 @@ Real-time monitoring system for your MakerWorld statistics with ESP32 display an
 
 - **ESP32 CYD Display**: Beautiful real-time statistics on a 320x240 TFT screen
 - **Telegram Bot**: Receive instant notifications on your phone
+- **Home Assistant MQTT**: Publish Downloads, Prints, Boosts, and Points as MQTT discovery sensors
 - **Multi-notification Support**: Downloads, Prints, Boosts, and Points tracking
 - **Sound Alerts**: Buzzer notifications for events (optional)
 - **Daily Reports**: Automated 24h summaries
@@ -129,6 +130,12 @@ After flashing, the ESP32 will create a WiFi network:
      - Enable: `Yes`
      - Bot Token: Get from [@BotFather](https://t.me/BotFather)
      - Chat ID: Get from [@userinfobot](https://t.me/userinfobot)
+
+   - **Home Assistant MQTT** (Optional):
+     - Enable: `Yes`
+     - Broker WebSocket URL: e.g. `ws://homeassistant.local:1884`
+     - MQTT username/password: use a dedicated broker user
+     - Topic Prefix: defaults to `makerworld`
    
    - **Settings**:
      - Refresh Interval: 5-60 minutes
@@ -197,6 +204,22 @@ Buzzer (-) → GND
 3. **Wait for notification** or trigger manual test
 
 </details>
+
+## 🏠 Home Assistant MQTT Setup
+
+The browser extension can publish retained Home Assistant MQTT discovery messages and retained state for Downloads, Prints, Boosts, and Points.
+
+Browsers cannot connect to raw MQTT/TCP on port `1883`, so your MQTT broker must expose a WebSocket listener. Use whichever WebSocket port you configured; `1884` is shown below as an example:
+
+```conf
+listener 1883
+protocol mqtt
+
+listener 1884
+protocol websockets
+```
+
+Then configure the extension with a WebSocket URL such as `ws://homeassistant.local:1884`. If your browser page is loaded in a secure context or your broker is exposed beyond your LAN, prefer `wss://` with a valid certificate.
 
 ## 🖥️ Display Screens
 

@@ -11,6 +11,15 @@ document.addEventListener('DOMContentLoaded', function () {
     const telegramSection = document.getElementById('telegram-config');
     const telegramTokenInput = document.getElementById('telegram-token');
     const chatIdInput = document.getElementById('chat-id');
+
+    // MQTT elements
+    const mqttEnabledSelect = document.getElementById('mqtt-enabled');
+    const mqttSection = document.getElementById('mqtt-config');
+    const mqttUrlInput = document.getElementById('mqtt-url');
+    const mqttUsernameInput = document.getElementById('mqtt-username');
+    const mqttPasswordInput = document.getElementById('mqtt-password');
+    const mqttPrefixInput = document.getElementById('mqtt-prefix');
+    const mqttDeviceNameInput = document.getElementById('mqtt-device-name');
     
     // General elements
     const refreshIntervalSelect = document.getElementById('refresh-interval');
@@ -42,6 +51,20 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!enabled) {
             telegramTokenInput.value = '';
             chatIdInput.value = '';
+        }
+    }
+
+    function toggleMQTTConfig() {
+        const enabled = mqttEnabledSelect.value === 'yes';
+        mqttSection.style.display = enabled ? 'block' : 'none';
+    }
+
+    function isValidMqttUrl(url) {
+        try {
+            const parsed = new URL(url);
+            return parsed.protocol === 'ws:' || parsed.protocol === 'wss:';
+        } catch (error) {
+            return false;
         }
     }
 
@@ -79,9 +102,33 @@ document.addEventListener('DOMContentLoaded', function () {
         if (config.dailyNotificationTime) notificationTimeInput.value = config.dailyNotificationTime;
     });
 
+    chrome.storage.local.get([
+        'mqtt_enabled',
+        'mqtt_url',
+        'mqtt_username',
+        'mqtt_password',
+        'mqtt_prefix',
+        'mqtt_device_name'
+    ], function (config) {
+        if (chrome.runtime.lastError) {
+            console.error('Error loading MQTT configuration:', chrome.runtime.lastError);
+            showStatus('Error loading MQTT configuration', true);
+            return;
+        }
+
+        mqttEnabledSelect.value = config.mqtt_enabled || 'no';
+        mqttUrlInput.value = config.mqtt_url || '';
+        mqttUsernameInput.value = config.mqtt_username || '';
+        mqttPasswordInput.value = config.mqtt_password || '';
+        mqttPrefixInput.value = config.mqtt_prefix || 'makerworld';
+        mqttDeviceNameInput.value = config.mqtt_device_name || 'MakerWorld Monitor';
+        toggleMQTTConfig();
+    });
+
     // Toggle handlers
     esp32EnabledSelect.addEventListener('change', toggleESP32Config);
     telegramEnabledSelect.addEventListener('change', toggleTelegramConfig);
+    mqttEnabledSelect.addEventListener('change', toggleMQTTConfig);
 
     // Test ESP32 connection
     testEsp32Button.addEventListener('click', function() {
@@ -144,12 +191,18 @@ document.addEventListener('DOMContentLoaded', function () {
         const telegramEnabled = telegramEnabledSelect.value;
         const telegramToken = telegramTokenInput.value.trim();
         const chatId = chatIdInput.value.trim();
+        const mqttEnabled = mqttEnabledSelect.value;
+        const mqttUrl = mqttUrlInput.value.trim();
+        const mqttUsername = mqttUsernameInput.value.trim();
+        const mqttPassword = mqttPasswordInput.value;
+        const mqttPrefix = mqttPrefixInput.value.trim() || 'makerworld';
+        const mqttDeviceName = mqttDeviceNameInput.value.trim() || 'MakerWorld Monitor';
         const refreshInterval = parseInt(refreshIntervalSelect.value);
         const dailyReport = dailyReportSelect.value;
         const notificationTime = notificationTimeInput.value;
 
         // Validation
-        if (esp32Enabled === 'no' && telegramEnabled === 'no') {
+        if (esp32Enabled === 'no' && telegramEnabled === 'no' && mqttEnabled === 'no') {
             showStatus('Enable at least one notification method', true);
             return;
         }
@@ -172,6 +225,11 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
+        if (mqttEnabled === 'yes' && !isValidMqttUrl(mqttUrl)) {
+            showStatus('Enter a valid MQTT WebSocket URL starting with ws:// or wss://', true);
+            return;
+        }
+
         chrome.storage.sync.set({
             esp32_enabled: esp32Enabled,
             esp32_ip: esp32Ip,
@@ -187,17 +245,32 @@ document.addEventListener('DOMContentLoaded', function () {
                 showStatus('Error saving configuration', true);
                 return;
             }
-            
-            showStatus('Configuration saved successfully!');
-            
-            // Reload page after 2 seconds
-            setTimeout(() => {
-                chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-                    if (tabs[0]) {
-                        chrome.tabs.reload(tabs[0].id);
-                    }
-                });
-            }, 2000);
+
+            chrome.storage.local.set({
+                mqtt_enabled: mqttEnabled,
+                mqtt_url: mqttUrl,
+                mqtt_username: mqttUsername,
+                mqtt_password: mqttPassword,
+                mqtt_prefix: mqttPrefix,
+                mqtt_device_name: mqttDeviceName
+            }, function() {
+                if (chrome.runtime.lastError) {
+                    console.error('Error saving MQTT configuration:', chrome.runtime.lastError);
+                    showStatus('Error saving MQTT configuration', true);
+                    return;
+                }
+
+                showStatus('Configuration saved successfully!');
+
+                // Reload page after 2 seconds
+                setTimeout(() => {
+                    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+                        if (tabs[0]) {
+                            chrome.tabs.reload(tabs[0].id);
+                        }
+                    });
+                }, 2000);
+            });
         });
     });
 

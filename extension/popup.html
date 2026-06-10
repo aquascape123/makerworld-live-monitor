@@ -145,6 +145,13 @@
             margin: 0;
             flex: 1;
         }
+        .field-row {
+            display: flex;
+            gap: 8px;
+        }
+        .field-row > div {
+            flex: 1;
+        }
     </style>
 </head>
 <body>
@@ -194,6 +201,42 @@
         </div>
 
         <div class="section-divider"></div>
+
+        <!-- MQTT SECTION -->
+        <div class="config-section" id="mqtt-section">
+            <div class="toggle-row">
+                <label>Home Assistant MQTT:</label>
+                <select id="mqtt-enabled" style="width: 120px;">
+                    <option value="no">Disabled</option>
+                    <option value="yes">Enabled</option>
+                </select>
+            </div>
+
+            <div id="mqtt-config">
+                <label for="mqtt-url">Broker WebSocket URL:</label>
+                <input type="text" id="mqtt-url" placeholder="ws://homeassistant.local:1884">
+                <div class="info-text">Use your broker's WebSocket listener, not the normal MQTT port 1883</div>
+
+                <div class="field-row">
+                    <div>
+                        <label for="mqtt-username">Username:</label>
+                        <input type="text" id="mqtt-username" placeholder="MQTT username">
+                    </div>
+                    <div>
+                        <label for="mqtt-password">Password:</label>
+                        <input type="password" id="mqtt-password" placeholder="MQTT password">
+                    </div>
+                </div>
+
+                <label for="mqtt-prefix">Topic Prefix:</label>
+                <input type="text" id="mqtt-prefix" placeholder="makerworld" value="makerworld">
+
+                <label for="mqtt-device-name">Device Name:</label>
+                <input type="text" id="mqtt-device-name" placeholder="MakerWorld Monitor" value="MakerWorld Monitor">
+            </div>
+        </div>
+
+        <div class="section-divider"></div>
         
         <!-- GENERAL SETTINGS -->
         <div class="config-section">
@@ -224,7 +267,7 @@
         <div class="footer">
             <small>
                 Made with ❤️ by 
-                <a href="https://makerworld.com/en/@aquascape" target="_blank">
+                <a href="https://makerworld.com/en/@aquascape" target="_blank" rel="noopener noreferrer">
                     @aquascape
                 </a>
             </small>
