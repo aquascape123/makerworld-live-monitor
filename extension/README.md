@@ -1,6 +1,6 @@
 # Extension Installation Guide 
 
-Browser extension that automatically sends your MakerWorld statistics to the ESP32 CYD display and Telegram in real-time.
+Browser extension that automatically sends your MakerWorld statistics to the ESP32 CYD display, Telegram, and Home Assistant via MQTT.
 
 ## 📥 Installation
 
@@ -41,14 +41,39 @@ Browser extension that automatically sends your MakerWorld statistics to the ESP
 - Message `@userinfobot` on Telegram
 - Copy your numeric Chat ID into **"Telegram Chat ID"**
 
-### 3. General Settings
+### 3. Home Assistant MQTT (Optional)
+The extension can publish MakerWorld totals to Home Assistant using MQTT discovery. Because browser extensions cannot connect to raw MQTT/TCP on port `1883`, your broker must expose MQTT over WebSockets.
+
+**Enable MQTT:**
+- Under "Home Assistant MQTT", select **"Enabled"**
+- Broker WebSocket URL: enter your broker WebSocket listener, for example `ws://homeassistant.local:1884`
+- Username and password: use a dedicated MQTT user if possible
+- Topic Prefix: defaults to `makerworld`
+- Device Name: defaults to `MakerWorld Monitor`
+
+**Mosquitto WebSocket listener example:**
+```conf
+listener 1883
+protocol mqtt
+
+listener 1884
+protocol websockets
+```
+
+After saving, open your MakerWorld uploads page. The extension publishes retained Home Assistant MQTT discovery topics and retained state for:
+- Downloads
+- Prints
+- Boosts
+- Points
+
+### 4. General Settings
 **Refresh Interval:** How often to check for updates (15 minutes recommended)
 
 **Daily Summary:** Receive a daily recap of your statistics
 
 **Summary Time:** Set the time for your daily report (default: 12:00 PM)
 
-### 4. Save Configuration
+### 5. Save Configuration
 - Click **"Save Configuration"** to apply all settings
 - The status message will confirm successful save
 
@@ -64,6 +89,7 @@ Browser extension that automatically sends your MakerWorld statistics to the ESP
 ### Dual Notification System
 - **ESP32 Display**: Live stats with color-coded LED notifications
 - **Telegram**: Push notifications to your phone (optional)
+- **Home Assistant MQTT**: Auto-discovered sensors for Downloads, Prints, Boosts, and Points
 - **Daily Summary**: Recap of daily activity at your chosen time
 
 ### Privacy & Security
@@ -93,6 +119,17 @@ Browser extension that automatically sends your MakerWorld statistics to the ESP
 2. **No notifications:**
    - Send `/start` to your bot in Telegram
    - Check if bot has permission to message you
+
+### Home Assistant MQTT Not Working
+1. **No sensors appear:**
+   - Confirm the MQTT integration is enabled in Home Assistant
+   - Confirm your broker has a WebSocket listener, such as `ws://homeassistant.local:1884`
+   - Open the browser console on the MakerWorld page and look for MQTT publish errors
+
+2. **Connection fails:**
+   - Check the WebSocket URL starts with `ws://` or `wss://`
+   - Verify the MQTT username/password
+   - If using HTTPS or a secure Home Assistant page, prefer `wss://` with a valid certificate
 
 ### Extension Not Monitoring
 1. **Check active tab:**
@@ -124,8 +161,9 @@ Browser extension that automatically sends your MakerWorld statistics to the ESP
 ## 🔒 Permissions Explained
 
 - **"Access your data for makerworld.com"** - Reads your statistics from MakerWorld profile
-- **"Notifications"** - Shows browser alerts for configuration events
 - **"Access data for local network"** - Communicates with your ESP32 device
+- **"Access api.telegram.org"** - Sends Telegram notifications when enabled
+- **"Access ws/wss hosts"** - Publishes MQTT over WebSockets to your broker when enabled
 
 ## 🐛 Reporting Issues
 

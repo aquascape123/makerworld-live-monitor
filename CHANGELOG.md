@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.2.0] - Unreleased
+
+### ✨ Added
+- **Home Assistant MQTT support**: Browser extension can publish Downloads, Prints, Boosts, and Points using MQTT over WebSockets with Home Assistant discovery
+- **MQTT configuration UI**: Extension popup now supports broker URL, username, password, topic prefix, and device name settings
+
+### 📝 Documentation
+- Added Home Assistant MQTT setup notes, including Mosquitto WebSocket listener configuration
+
+---
+
 ## [2.1.0] - 2024-01-XX
 
 ### ✨ Added
@@ -86,7 +97,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [ ] Theme customization via web interface
 - [ ] Historical stats graphs
 - [ ] Export stats to CSV
-- [ ] MQTT support for Home Assistant
+- [x] MQTT support for Home Assistant
 - [ ] Discord webhook support
 - [ ] Push notification to phone (via app)
 

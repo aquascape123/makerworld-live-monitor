@@ -2,7 +2,6 @@
 chrome.runtime.onInstalled.addListener(() => {
   console.log('MakerWorld Monitor background script installed');
 });
-
 // Gestisce le richieste dall'content script
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "sendToESP32") {
@@ -82,13 +81,3 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true;
   }
 });
-
-// Gestione errori di rete
-chrome.webRequest.onErrorOccurred.addListener(
-  (details) => {
-    if (details.error === 'net::ERR_INTERNET_DISCONNECTED') {
-      console.log('Network disconnected, will retry when connection is restored');
-    }
-  },
-  {urls: ['<all_urls>']}
-);

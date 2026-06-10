@@ -1,3 +1,122 @@
+class SimpleMqttClient {
+  constructor({ url, username, password, clientId }) {
+    this.url = url;
+    this.username = username;
+    this.password = password;
+    this.clientId = clientId;
+    this.encoder = new TextEncoder();
+    this.socket = null;
+  }
+
+  async connect() {
+    return new Promise((resolve, reject) => {
+      const socket = new WebSocket(this.url, ['mqtt']);
+      const timeoutId = setTimeout(() => {
+        socket.close();
+        reject(new Error('MQTT connection timed out'));
+      }, 8000);
+
+      socket.binaryType = 'arraybuffer';
+      socket.onopen = () => {
+        socket.send(this.createConnectPacket());
+      };
+      socket.onerror = () => {
+        clearTimeout(timeoutId);
+        reject(new Error('MQTT WebSocket connection failed'));
+      };
+      socket.onmessage = (event) => {
+        const data = new Uint8Array(event.data);
+        if (data[0] === 0x20 && data[1] === 0x02) {
+          clearTimeout(timeoutId);
+          const returnCode = data[3];
+          if (returnCode === 0) {
+            this.socket = socket;
+            resolve();
+          } else {
+            socket.close();
+            reject(new Error(`MQTT CONNACK failed with code ${returnCode}`));
+          }
+        }
+      };
+    });
+  }
+
+  publish(topic, payload, { retain = false } = {}) {
+    if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
+      throw new Error('MQTT socket is not connected');
+    }
+
+    this.socket.send(this.createPublishPacket(topic, payload, retain));
+  }
+
+  disconnect() {
+    if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+      this.socket.send(new Uint8Array([0xE0, 0x00]));
+      this.socket.close();
+    }
+  }
+
+  createConnectPacket() {
+    const variableHeader = [
+      ...this.encodeString('MQTT'),
+      0x04,
+      this.getConnectFlags(),
+      0x00,
+      0x3C
+    ];
+
+    const payload = [
+      ...this.encodeString(this.clientId),
+      ...(this.username ? this.encodeString(this.username) : []),
+      ...(this.password ? this.encodeString(this.password) : [])
+    ];
+
+    return this.createPacket(0x10, [...variableHeader, ...payload]);
+  }
+
+  createPublishPacket(topic, payload, retain) {
+    const body = [
+      ...this.encodeString(topic),
+      ...this.encoder.encode(payload)
+    ];
+
+    return this.createPacket(retain ? 0x31 : 0x30, body);
+  }
+
+  getConnectFlags() {
+    let flags = 0x02; // clean session
+    if (this.username) flags |= 0x80;
+    if (this.password) flags |= 0x40;
+    return flags;
+  }
+
+  createPacket(packetType, body) {
+    return new Uint8Array([
+      packetType,
+      ...this.encodeRemainingLength(body.length),
+      ...body
+    ]);
+  }
+
+  encodeString(value) {
+    const bytes = Array.from(this.encoder.encode(value));
+    return [(bytes.length >> 8) & 0xFF, bytes.length & 0xFF, ...bytes];
+  }
+
+  encodeRemainingLength(length) {
+    const encoded = [];
+    do {
+      let digit = length % 128;
+      length = Math.floor(length / 128);
+      if (length > 0) {
+        digit |= 0x80;
+      }
+      encoded.push(digit);
+    } while (length > 0);
+    return encoded;
+  }
+}
+
 class ValueMonitor {
   constructor() {
     this.esp32IP = '';
@@ -5,6 +124,12 @@ class ValueMonitor {
     this.telegramToken = '';
     this.chatId = '';
     this.telegramEnabled = false;
+    this.mqttEnabled = false;
+    this.mqttUrl = '';
+    this.mqttUsername = '';
+    this.mqttPassword = '';
+    this.mqttPrefix = 'makerworld';
+    this.mqttDeviceName = 'MakerWorld Monitor';
     this.previousValues = null;
     this.checkInterval = null;
     this.isChecking = false;
@@ -26,6 +151,27 @@ class ValueMonitor {
     return new Promise((resolve) => {
       chrome.storage.local.set({ previousValues: values }, () => {
         console.log('Values saved to storage');
+        resolve();
+      });
+    });
+  }
+
+  async loadMqttConfig() {
+    return new Promise((resolve) => {
+      chrome.storage.local.get([
+        'mqtt_enabled',
+        'mqtt_url',
+        'mqtt_username',
+        'mqtt_password',
+        'mqtt_prefix',
+        'mqtt_device_name'
+      ], (config) => {
+        this.mqttEnabled = config.mqtt_enabled === 'yes';
+        this.mqttUrl = config.mqtt_url || '';
+        this.mqttUsername = config.mqtt_username || '';
+        this.mqttPassword = config.mqtt_password || '';
+        this.mqttPrefix = this.sanitizeTopicPart(config.mqtt_prefix || 'makerworld');
+        this.mqttDeviceName = config.mqtt_device_name || 'MakerWorld Monitor';
         resolve();
       });
     });
@@ -149,6 +295,164 @@ class ValueMonitor {
     }
   }
 
+  async loadLastMqttState() {
+    return new Promise((resolve) => {
+      chrome.storage.local.get(['lastMqttState'], (result) => {
+        resolve(result.lastMqttState || null);
+      });
+    });
+  }
+
+  async saveLastMqttState(state) {
+    return new Promise((resolve) => {
+      chrome.storage.local.set({ lastMqttState: state }, () => resolve());
+    });
+  }
+
+  buildMqttStatePayload(currentValues, lastState) {
+    if (!currentValues.statsExtracted) {
+      console.log('MQTT publish skipped: page stats not fully loaded yet');
+      return null;
+    }
+
+    const counters = {
+      total_downloads: currentValues.totalDownloads ?? 0,
+      total_prints: currentValues.totalPrints ?? 0,
+      total_boosts: currentValues.totalBoosts ?? 0,
+      points: Math.round(currentValues.points || 0)
+    };
+
+    if (lastState) {
+      for (const key of Object.keys(counters)) {
+        const next = counters[key];
+        const previous = lastState[key] ?? 0;
+        if (next === 0 && previous > 0) {
+          counters[key] = previous;
+        }
+      }
+    }
+
+    const hasAnyData = Object.values(counters).some((value) => value > 0);
+    if (!hasAnyData && !lastState) {
+      console.log('MQTT publish skipped: all counters are zero');
+      return null;
+    }
+
+    return {
+      ...counters,
+      account_name: currentValues.accountName || lastState?.account_name || '',
+      last_updated: new Date(currentValues.timestamp || Date.now()).toISOString(),
+      timestamp: currentValues.timestamp || Date.now()
+    };
+  }
+
+  async publishToMqtt(currentValues) {
+    if (!this.mqttEnabled || !this.mqttUrl) {
+      return false;
+    }
+
+    const lastState = await this.loadLastMqttState();
+    const payload = this.buildMqttStatePayload(currentValues, lastState);
+    if (!payload) {
+      return false;
+    }
+
+    const client = new SimpleMqttClient({
+      url: this.mqttUrl,
+      username: this.mqttUsername,
+      password: this.mqttPassword,
+      clientId: `makerworld_monitor_${Date.now()}`
+    });
+
+    try {
+      const stateTopic = `${this.mqttPrefix}/state`;
+      const availabilityTopic = `${this.mqttPrefix}/status`;
+      await client.connect();
+
+      for (const message of this.buildHomeAssistantDiscoveryMessages(stateTopic, availabilityTopic)) {
+        client.publish(message.topic, JSON.stringify(message.payload), { retain: true });
+      }
+
+      client.publish(availabilityTopic, 'online', { retain: true });
+      client.publish(stateTopic, JSON.stringify(payload), { retain: true });
+      await this.saveLastMqttState(payload);
+
+      console.log('MQTT state published successfully', payload);
+      return true;
+    } catch (error) {
+      console.error('MQTT publish failed:', error);
+      return false;
+    } finally {
+      client.disconnect();
+    }
+  }
+
+  buildHomeAssistantDiscoveryMessages(stateTopic, availabilityTopic) {
+    const objectId = this.sanitizeTopicPart(this.mqttDeviceName).replace(/\//g, '_');
+    const device = {
+      identifiers: [`makerworld_${objectId}`],
+      name: this.mqttDeviceName,
+      manufacturer: 'MakerWorld',
+      model: 'Browser Extension'
+    };
+
+    const base = {
+      state_topic: stateTopic,
+      availability_topic: availabilityTopic,
+      payload_available: 'online',
+      payload_not_available: 'offline',
+      device
+    };
+
+    const sensors = [
+      {
+        key: 'total_downloads',
+        name: 'Downloads',
+        icon: 'mdi:download',
+        stateClass: 'total_increasing'
+      },
+      {
+        key: 'total_prints',
+        name: 'Prints',
+        icon: 'mdi:printer-3d',
+        stateClass: 'total_increasing'
+      },
+      {
+        key: 'total_boosts',
+        name: 'Boosts',
+        icon: 'mdi:rocket-launch',
+        stateClass: 'total_increasing'
+      },
+      {
+        key: 'points',
+        name: 'Points',
+        icon: 'mdi:star',
+        stateClass: 'measurement'
+      }
+    ];
+
+    return sensors.map((sensor) => ({
+      topic: `homeassistant/sensor/${objectId}_${sensor.key}/config`,
+      payload: {
+        ...base,
+        name: `${this.mqttDeviceName} ${sensor.name}`,
+        unique_id: `${objectId}_${sensor.key}`,
+        object_id: `${objectId}_${sensor.key}`,
+        icon: sensor.icon,
+        state_class: sensor.stateClass,
+        value_template: `{{ value_json.${sensor.key} }}`
+      }
+    }));
+  }
+
+  sanitizeTopicPart(value) {
+    return String(value || 'makerworld')
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9_-]+/g, '_')
+      .replace(/^_+|_+$/g, '') || 'makerworld';
+  }
+
   async syncInitialStats() {
     if (!this.esp32Enabled || !this.esp32IP) {
         console.log('ESP32 disabled, skipping sync');
@@ -238,7 +542,8 @@ class ValueMonitor {
         const currentValues = {
             models: {},
             points: 0,
-            accountName: '',  // AGGIUNTO
+            accountName: '',
+            statsExtracted: false,
             timestamp: Date.now()
         };
 
@@ -269,11 +574,10 @@ class ValueMonitor {
             
             if (pointsElement) {
                 const pointsText = pointsElement.textContent || pointsElement.innerText;
-                const numbers = pointsText.match(/\d+[\.,]?\d*/g);
+                const pointsValue = this.parsePointsValue(pointsText);
                 
-                if (numbers && numbers.length > 0) {
-                    const numberStr = numbers[0].replace(',', '.');
-                    currentValues.points = parseFloat(numberStr);
+                if (Number.isFinite(pointsValue)) {
+                    currentValues.points = pointsValue;
                     console.log('Points extracted:', currentValues.points);
                 }
             }
@@ -290,6 +594,7 @@ class ValueMonitor {
             const downloadText = statElements[2]?.textContent?.trim() || '0';
             const printText = statElements[3]?.textContent?.trim() || '0';
             
+            currentValues.statsExtracted = true;
             currentValues.totalBoosts = this.parseNumber(boostText);
             currentValues.totalLikes = this.parseNumber(likeText);
             currentValues.totalDownloads = this.parseNumber(downloadText);
@@ -364,6 +669,34 @@ class ValueMonitor {
     }
     
     return parseInt(text.replace(/[^\d]/g, '')) || 0;
+  }
+
+  parsePointsValue(text) {
+    if (!text) return 0;
+
+    const match = String(text).match(/\d[\d\s,.]*/);
+    if (!match) return 0;
+
+    let value = match[0].replace(/\s/g, '');
+    const hasComma = value.includes(',');
+    const hasDot = value.includes('.');
+
+    if (hasComma && hasDot) {
+      const decimalSeparator = value.lastIndexOf(',') > value.lastIndexOf('.') ? ',' : '.';
+      const thousandsSeparator = decimalSeparator === ',' ? '.' : ',';
+      value = value
+        .replace(new RegExp(`\\${thousandsSeparator}`, 'g'), '')
+        .replace(decimalSeparator, '.');
+    } else if (hasComma) {
+      value = /^\d{1,3}(,\d{3})+$/.test(value)
+        ? value.replace(/,/g, '')
+        : value.replace(',', '.');
+    } else if (hasDot && /^\d{1,3}(\.\d{3})+$/.test(value)) {
+      value = value.replace(/\./g, '');
+    }
+
+    const parsed = parseFloat(value);
+    return Number.isFinite(parsed) ? parsed : 0;
   }
 
   async getDailySummary() {
@@ -507,6 +840,8 @@ ${summary.top5Prints.map((m, i) => `${i + 1}. ${m.name}: +${m.printsGained}`).jo
         console.log('No current values found');
         return;
       }
+
+      await this.publishToMqtt(currentValues);
 
       if (!this.previousValues) {
         await this.loadPreviousValues();
@@ -655,14 +990,17 @@ Reward Interval: every ${rewardInterval} points`;
       this.telegramToken = config.telegramToken || '';
       this.chatId = config.chatId || '';
 
-      if (!this.esp32Enabled && !this.telegramEnabled) {
-        console.error('Neither ESP32 nor Telegram is enabled. Enable at least one.');
+      await this.loadMqttConfig();
+
+      if (!this.esp32Enabled && !this.telegramEnabled && !this.mqttEnabled) {
+        console.error('No notification or publishing method is enabled. Enable ESP32, Telegram, or MQTT.');
         return;
       }
 
       console.log('Configuration:', {
         esp32: this.esp32Enabled ? `Enabled (${this.esp32IP})` : 'Disabled',
-        telegram: this.telegramEnabled ? 'Enabled' : 'Disabled'
+        telegram: this.telegramEnabled ? 'Enabled' : 'Disabled',
+        mqtt: this.mqttEnabled ? `Enabled (${this.mqttUrl})` : 'Disabled'
       });
       
       const refreshInterval = config.refreshInterval || 900000;
