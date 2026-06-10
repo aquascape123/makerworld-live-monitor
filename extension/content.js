@@ -295,8 +295,65 @@ class ValueMonitor {
     }
   }
 
+  async loadLastMqttState() {
+    return new Promise((resolve) => {
+      chrome.storage.local.get(['lastMqttState'], (result) => {
+        resolve(result.lastMqttState || null);
+      });
+    });
+  }
+
+  async saveLastMqttState(state) {
+    return new Promise((resolve) => {
+      chrome.storage.local.set({ lastMqttState: state }, () => resolve());
+    });
+  }
+
+  buildMqttStatePayload(currentValues, lastState) {
+    if (!currentValues.statsExtracted) {
+      console.log('MQTT publish skipped: page stats not fully loaded yet');
+      return null;
+    }
+
+    const counters = {
+      total_downloads: currentValues.totalDownloads ?? 0,
+      total_prints: currentValues.totalPrints ?? 0,
+      total_boosts: currentValues.totalBoosts ?? 0,
+      points: Math.round(currentValues.points || 0)
+    };
+
+    if (lastState) {
+      for (const key of Object.keys(counters)) {
+        const next = counters[key];
+        const previous = lastState[key] ?? 0;
+        if (next === 0 && previous > 0) {
+          counters[key] = previous;
+        }
+      }
+    }
+
+    const hasAnyData = Object.values(counters).some((value) => value > 0);
+    if (!hasAnyData && !lastState) {
+      console.log('MQTT publish skipped: all counters are zero');
+      return null;
+    }
+
+    return {
+      ...counters,
+      account_name: currentValues.accountName || lastState?.account_name || '',
+      last_updated: new Date(currentValues.timestamp || Date.now()).toISOString(),
+      timestamp: currentValues.timestamp || Date.now()
+    };
+  }
+
   async publishToMqtt(currentValues) {
     if (!this.mqttEnabled || !this.mqttUrl) {
+      return false;
+    }
+
+    const lastState = await this.loadLastMqttState();
+    const payload = this.buildMqttStatePayload(currentValues, lastState);
+    if (!payload) {
       return false;
     }
 
@@ -317,17 +374,10 @@ class ValueMonitor {
       }
 
       client.publish(availabilityTopic, 'online', { retain: true });
-      client.publish(stateTopic, JSON.stringify({
-        total_downloads: currentValues.totalDownloads || 0,
-        total_prints: currentValues.totalPrints || 0,
-        total_boosts: currentValues.totalBoosts || 0,
-        points: Math.round(currentValues.points || 0),
-        account_name: currentValues.accountName || '',
-        last_updated: new Date(currentValues.timestamp || Date.now()).toISOString(),
-        timestamp: currentValues.timestamp || Date.now()
-      }), { retain: true });
+      client.publish(stateTopic, JSON.stringify(payload), { retain: true });
+      await this.saveLastMqttState(payload);
 
-      console.log('MQTT state published successfully');
+      console.log('MQTT state published successfully', payload);
       return true;
     } catch (error) {
       console.error('MQTT publish failed:', error);
@@ -492,7 +542,8 @@ class ValueMonitor {
         const currentValues = {
             models: {},
             points: 0,
-            accountName: '',  // AGGIUNTO
+            accountName: '',
+            statsExtracted: false,
             timestamp: Date.now()
         };
 
@@ -543,6 +594,7 @@ class ValueMonitor {
             const downloadText = statElements[2]?.textContent?.trim() || '0';
             const printText = statElements[3]?.textContent?.trim() || '0';
             
+            currentValues.statsExtracted = true;
             currentValues.totalBoosts = this.parseNumber(boostText);
             currentValues.totalLikes = this.parseNumber(likeText);
             currentValues.totalDownloads = this.parseNumber(downloadText);
