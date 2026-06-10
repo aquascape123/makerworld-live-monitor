@@ -321,7 +321,7 @@ class ValueMonitor {
         total_downloads: currentValues.totalDownloads || 0,
         total_prints: currentValues.totalPrints || 0,
         total_boosts: currentValues.totalBoosts || 0,
-        points: currentValues.points || 0,
+        points: Math.round(currentValues.points || 0),
         account_name: currentValues.accountName || '',
         last_updated: new Date(currentValues.timestamp || Date.now()).toISOString(),
         timestamp: currentValues.timestamp || Date.now()
